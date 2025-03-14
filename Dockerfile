@@ -10,7 +10,8 @@ COPY vsftpd.conf /etc/vsftpd.conf
 USER root
 RUN echo 'root:password' | chpasswd
 
-COPY ftp.py /app/ftp.py
+COPY --chown=root:root ftp.py /app/ftp.py
+RUN chmod +x /app/ftp.py
 
 WORKDIR /app
 
