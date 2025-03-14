@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM python:slim
 RUN apt update && apt install -y \
   vsftpd \
   && rm -rf /var/lib/apt/lists/*
@@ -9,6 +9,8 @@ COPY vsftpd.conf /etc/vsftpd.conf
 
 USER root
 RUN echo 'root:password' | chpasswd
+
+COPY ftp.py /app/ftp.py
 
 WORKDIR /app
 
