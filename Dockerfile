@@ -12,6 +12,10 @@ RUN echo 'root:password' | chpasswd
 
 COPY --chown=root:root ftp.py /app/ftp.py
 RUN chmod +x /app/ftp.py
+COPY --chown=root:root publish.sh /app/publish.sh
+RUN chmod +x /app/publish.sh
+
+ENV PATH="/app:${PATH}"
 
 WORKDIR /app
 
