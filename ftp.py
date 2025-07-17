@@ -11,7 +11,10 @@ import urllib.request
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
-from time import sleep
+
+import socket
+from time import sleep, time
+socket.setdefaulttimeout(30)
 
 ########################################################################################
 # Call this class with three arguments: trace enabled, name to store logs, config json #
@@ -26,7 +29,7 @@ log.basicConfig(
     level=log.DEBUG,
     handlers=[
         log.FileHandler(".command.init." + sys.argv[2] + ".log"),
-        log.StreamHandler()
+        log.StreamHandler(sys.stdout)
     ]
 )
 trace = {}
@@ -146,6 +149,10 @@ def downloadFile(ftp, filename, size, index, node, syncFile, speed):
         delta = (end - start)
         log.info("Speed: %.3f Mb/s", sizeInMB / delta)
         return sizeInMB, delta
+    except socket.timeout:
+        errors += 1
+        log.warning("Timeout or EOFError while downloading %s", filename)
+        return None
     except ftplib.error_perm as err:
         errors += 1
         if str(err) == "550 Failed to open file.":
@@ -174,6 +181,7 @@ def download(node, currentIP, files, dns, execution, syncFile, speed):
     global CLOSE
     sizeInMB = 0
     downloadTime = 0
+    attempt = 0
     while not CLOSE and len(files) > 0:
         if ftp is None:
             ftp = getFTP(node, currentIP, dns, execution, syncFile)
@@ -183,13 +191,18 @@ def download(node, currentIP, files, dns, execution, syncFile, speed):
         result = downloadFile(ftp, filename, size, index, node, syncFile, speed)
         if result is None:
             ftp = None
+            attempt += 1
+            if attempt > 3:
+                log.error("Too many attempts to download %s", filename)
+                closeWithWarning(42, syncFile)
             continue
+        attempt = 0
         sizeInMB += result[0]
         downloadTime += result[1]
         files.pop(0)
         syncFile.write("F-" + filename + '\n')
     closeFTP(ftp)
-    return node, sizeInMB / downloadTime
+    return node, sizeInMB / downloadTime if downloadTime > 0 else 0
 
 
 def waitForFiles(syncFilePath, files, startTime):
@@ -360,3 +373,4 @@ def run():
 
 if __name__ == '__main__':
     run()
+    sys.exit(EXIT)
